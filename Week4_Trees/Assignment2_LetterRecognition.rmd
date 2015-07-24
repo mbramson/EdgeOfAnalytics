@@ -1,0 +1,112 @@
+Unit 4 - Assignment 2 : Letter Recognition
+========================================================
+Loading and Pre-Processing data
+----------------------------------------------------
+```{r}
+letters = read.csv("letters_ABPR.csv")
+str(letters)
+summary(letters)
+letters$isB = as.factor(letters$letter == "B")
+summary(letters)
+```
+Splitting the Dataset
+---------------------------------------------------------
+```{r}
+suppressWarnings(library(caTools))
+set.seed(1000)
+spl = sample.split(letters$isB, SplitRatio = 0.5)
+train = subset(letters, spl == TRUE)
+test = subset(letters, spl == FALSE)
+```
+Baseline Accuracy
+------------------------------
+```{r}
+testtable = table(test$isB)
+testtable[1] / nrow(test)
+```
+Building Our CART Model
+===================================
+```{r}
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+CARTb = rpart(isB ~ . - letter, data=train, method="class")
+```
+Prediction on the Test Data
+-----------------------------------------
+```{r}
+PredictTest = predict(CARTb, newdata=test, type="class")
+predictTable = table(test$isB, PredictTest)
+predictTable
+```
+Computing the accuracy:
+```{r}
+(predictTable[1,1] + predictTable[2,2] )/nrow(test)
+```
+Building a Random Forest Model
+=======================================
+```{r}
+suppressWarnings(library(randomForest))
+set.seed(1000)
+lettersForest = randomForest(isB ~ . - letter, data=train, nodesize=25, ntree=200)
+```
+Predictions on the test set
+---------------------------------------
+```{r}
+PredictForest = predict(lettersForest, newdata=test)
+predictTable = table(test$isB, PredictForest)
+predictTable
+```
+Accuracy: `r (predictTable[1,1] + predictTable[2,2]) / nrow(test)`
+Predicting more Letters
+=========================================
+```{r}
+letters$letter = as.factor( letters$letter )
+set.seed(2000)
+spl = sample.split(letters$letter, SplitRatio = 0.5)
+train = subset(letters, spl == TRUE)
+test = subset(letters, spl == FALSE)
+```
+Baseline Accuracy
+---------------------------------------
+```{r}
+table(train$letter)
+```
+Looks like the most common letter is P. We will use that to predict on test
+```{r}
+testtable = table(test$letter)
+testtable[3] / sum(testtable)
+```
+Constructing our CART Model
+=========================================
+```{r}
+CART = rpart(letter ~ . - isB, data=train, method="class")
+prp(CART)
+```
+Prediction on the Test Data
+-----------------------------------------
+```{r}
+PredictTest = predict(CART, newdata=test, type="class")
+predictTable = table(test$letter, PredictTest)
+predictTable
+```
+Computing the accuracy:
+```{r}
+(predictTable[1,1] + predictTable[2,2] + predictTable[3,3] + predictTable[4,4] )/nrow(test)
+```
+Building another Random Forest
+===========================================
+```{r}
+set.seed(1000)
+lettersForest = randomForest(letter ~ . - isB, data=train)
+```
+Predictions on the test set
+---------------------------------------
+```{r}
+PredictForest = predict(lettersForest, newdata=test)
+predictTable = table(test$letter, PredictForest)
+predictTable
+```
+Computing the accuracy:
+```{r}
+(predictTable[1,1] + predictTable[2,2] + predictTable[3,3] + predictTable[4,4] )/nrow(test)
+```

@@ -1,0 +1,81 @@
+Unit 4 - Lecture 2 : D2Hawkeye Story
+========================================================
+Loading and Pre-Processing the data
+--------------------------------------------------------
+```{r}
+Claims = read.csv("ClaimsData.csv")
+str(Claims)
+summary(Claims)
+table(Claims$bucket2009)/nrow(Claims)
+```
+We're trying to predict the bucket that patients fall into using our CART Model.
+```{r}
+suppressWarnings(library(caTools))
+set.seed(88)
+spl = sample.split(Claims$bucket2009, SplitRatio = 0.6)
+ClaimsTrain = subset(Claims, spl == TRUE)
+ClaimsTest = subset(Claims, spl == FALSE)
+```
+Baseline Accuracy
+------------------------------------------------------
+```{r}
+BTable = table(ClaimsTest$bucket2009, ClaimsTest$bucket2008)
+BTable
+```
+Calculate the accuracy:
+```{r}
+(BTable[1,1] + BTable[2,2] + BTable[3,3] + BTable[4,4] + BTable[5,5])/nrow(ClaimsTest)
+```
+Computing Penalty Error
+----------------------------------------------------------
+```{r}
+PenaltyMatrix = matrix(c(0,1,2,3,4,2,0,1,2,3,4,2,0,1,2,6,4,2,0,1,8,6,4,2,0),byrow=TRUE, nrow=5)
+PenaltyMatrix
+```
+The worst outcomes are when we predict a low cost bucket and it's actually a high cost bucket. To compute the penalty error we multiply our classification matrix by our penalty matrix.
+```{r}
+sum(as.matrix(BTable)*PenaltyMatrix)/nrow(ClaimsTest)
+```
+Building the CART Model
+-----------------------------------------------------------
+```{r}
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+ClaimsTree = rpart(bucket2009 ~ age + arthritis + cancer + copd + depression + diabetes + heart.failure + ihd + kidney + osteoporosis + stroke + bucket2008 + reimbursement2008, data = ClaimsTrain, method="class", cp=0.00005)
+prp(ClaimsTree)
+```
+Predictions on the Test set
+------------------------------------------------------------
+```{r}
+PredictTest = predict(ClaimsTree, newdata=ClaimsTest, type="class")
+predictTable = table(ClaimsTest$bucket2009, PredictTest)
+predictTable
+```
+Computing the accuracy:
+```{r}
+(predictTable[1,1] + predictTable[2,2] + predictTable[3,3] + predictTable[4,4] + predictTable[5,5])/nrow(ClaimsTest)
+```
+Penalty Error
+---------------------------------------------------------------
+```{r}
+sum(as.matrix(PenaltyMatrix) * PenaltyMatrix) / nrow(ClaimsTest)
+```
+By default rpart will try to maximize accuracy, and doesn't take into account our Penalty Matrix. That is why although the accuracy has improved, the Penalty Error has gotten worse. To fix this we specify the loss parameter for the rpart function.
+Constructing CART Model with Penalty Error Optimized
+------------------------------------------------------------------
+```{r}
+ClaimsTree = rpart(bucket2009 ~ age + arthritis + cancer + copd + depression + diabetes + heart.failure + ihd + kidney + osteoporosis + stroke + bucket2008 + reimbursement2008, data = ClaimsTrain, method="class", cp=0.00005, parms = list(loss=PenaltyMatrix))
+PredictTest = predict(ClaimsTree, newdata=ClaimsTest, type="class")
+predictTable = table(ClaimsTest$bucket2009, PredictTest)
+predictTable
+table(PredictTest)
+```
+Computing the accuracy:
+```{r}
+(predictTable[1,1] + predictTable[2,2] + predictTable[3,3] + predictTable[4,4] + predictTable[5,5])/nrow(ClaimsTest)
+```
+Penalty Error
+---------------------------------------------------------------
+```{r}
+sum(as.matrix(PenaltyMatrix) * PenaltyMatrix) / nrow(ClaimsTest)
+```

@@ -1,0 +1,105 @@
+Unit 5 - Assignment 5 : Medical Literature
+========================================================
+Loading the Data
+===========================================
+```{r}
+trials = read.csv("clinical_trial.csv", stringsAsFactors=FALSE)
+summary(trials)
+str(trials)
+#nrow(subset(trials, nchar(abstract)==0))
+#trials$title[which.min(nchar(trials$title))]
+```
+Building the Corpus(s)
+============================================
+```{r}
+suppressWarnings(suppressMessages(library(tm)))
+corpusTitle = Corpus(VectorSource(trials$title))
+corpusAbstract = Corpus(VectorSource(trials$abstract))
+corpusTitle = tm_map(corpusTitle, content_transformer(tolower))
+corpusAbstract = tm_map(corpusAbstract, content_transformer(tolower))
+corpusTitle = tm_map(corpusTitle, removePunctuation)
+corpusAbstract = tm_map(corpusAbstract, removePunctuation)
+corpusTitle = tm_map(corpusTitle, removeWords, stopwords("english"))
+corpusAbstract = tm_map(corpusAbstract, removeWords, stopwords("english"))
+corpusTitle = tm_map(corpusTitle, stemDocument)
+corpusAbstract = tm_map(corpusAbstract, stemDocument)
+```
+Document Term Matrix
+-------------------------------------------
+```{r}
+dtmTitle = DocumentTermMatrix(corpusTitle)
+dtmAbstract = DocumentTermMatrix(corpusAbstract)
+dtmTitle = removeSparseTerms(dtmTitle, 0.95)
+dtmAbstract = removeSparseTerms(dtmAbstract, 0.95)
+dtmTitle = as.data.frame(as.matrix(dtmTitle))
+dtmAbstract = as.data.frame(as.matrix(dtmAbstract))
+```
+Of abstracts, the word stem that comes up the most is:
+```{r}
+which.max(colSUms(dtmAbstract))
+```
+Dataframe Construction
+==========================================
+```{r}
+colnames(dtmTitle) = paste0("T", colnames(dtmTitle))
+colnames(dtmAbstract) = paste0("A", colnames(dtmAbstract))
+dtm = cbind(dtmTitle, dtmAbstract)
+dtm$trial = trials$trial
+```
+Splitting the Data
+=======================================
+```{r}
+suppressWarnings(library(caTools))
+set.seed(144)
+spl = sample.split(dtm$trial, SplitRatio=0.7)
+train = subset(dtm, spl == TRUE)
+test = subset(dtm, spl == FALSE)
+```
+Baseline Model
+============================================
+```{r}
+basetable = table(test$trial)
+```
+**Accuracy:** `r max(c(basetable[1],basetable[2]))/(basetable[1]+basetable[2])`
+CART Model
+=====================================
+```{r}
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+trialCART = rpart(trial ~ ., data=train, method="class")
+prp(trialCART)
+```
+Predictions on the Training Set
+=====================================
+```{r}
+pred = predict(trialCART)
+pred.prob = pred[,2]
+predtable = table(train$trial, pred.prob >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / nrow(train)`
+
+**Sensitivity:** `r predtable[2,2]/sum(predtable[2,])`
+
+**Specificity:** `r predtable[1,1]/sum(predtable[1,])`
+
+Predictions on the Test Set
+=========================================
+```{r}
+pred = predict(trialCART, newdata=test)
+pred.prob = pred[,2]
+predtable = table(test$trial, pred.prob >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / sum(predtable)`
+
+**Sensitivity:** `r predtable[2,2]/sum(predtable[2,])`
+
+**Specificity:** `r predtable[1,1]/sum(predtable[1,])`
+ROCR AUC
+---------------------------
+```{r}
+suppressWarnings(library(ROCR))
+predROCR = prediction(pred.prob, test$trial)
+performance(predROCR, "auc")@y.values
+```

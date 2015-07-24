@@ -1,0 +1,64 @@
+Unit 6 - Cluster : Recitation - Image Segmentation
+========================================================
+Overview
+--------
+In this recitation we will introduce the R implementation of the K-Means Clustering Algorithm
+Loading and Preparing our Data
+==================================
+```{r}
+flower = read.csv("flower.csv", header=FALSE)
+healthy = read.csv("healthy.csv", header=FALSE)
+tumor = read.csv("tumor.csv", header=FALSE)
+flowerMatrix = as.matrix(flower)
+healthyMatrix = as.matrix(healthy)
+tumorMatrix = as.matrix(tumor)
+flowerVector = as.vector(flowerMatrix)
+healthyVector = as.vector(healthyMatrix)
+tumorVector = as.vector(tumorMatrix)
+```
+Hierarchical Clustering of Flower
+===========================================
+```{r}
+distance = dist(flowerVector, method="euclidean")
+clusterIntensity = hclust(distance, method="ward.D")
+plot(clusterIntensity)
+rect.hclust(clusterIntensity, k=3, border="red")
+flowerClusters = cutree(clusterIntensity, k=3)
+tapply(flowerVector, flowerClusters, mean)
+dim(flowerClusters) = c(50,50)
+image(flowerClusters, axes=FALSE)
+```
+Original Image
+----------------------
+```{r}
+image(flowerMatrix, axes=FALSE, col = grey(seq(0,1,length=256)))
+```
+Brain Image Clustering
+=================================
+```{r}
+image(healthyMatrix, axes=FALSE,  col = grey(seq(0,1,length=256)))
+distance = dist(healthyVector, method="euclidean")
+```
+Looks like our image is way too large to allocate. We will try K-Means
+K-Means Clustering
+=================================
+```{r}
+k=5
+set.seed(1)
+KMC = kmeans(healthyVector, centers=k, iter.max=1000)
+str(KMC)
+healthyClusters = KMC$cluster
+KMC$centers[2] #Gives us the intensity value for cluster 2
+dim(healthyClusters) = c(nrow(healthyMatrix), ncol(healthyMatrix))
+image(healthyClusters, axes=FALSE, col=rainbow(k))
+```
+Tumor Image Clustering
+---------------------------------------
+We're going to treat the healthy image as the training set and the tumor as the test
+```{r}
+suppressWarnings(library(flexclust))
+KMC.kcca = as.kcca(KMC, healthyVector)
+tumorClusters = predict(KMC.kcca, newdata=tumorVector)
+dim(tumorClusters) = c(nrow(tumorMatrix), ncol(tumorMatrix))
+image(tumorClusters, axes=FALSE, col=rainbow(k))
+```

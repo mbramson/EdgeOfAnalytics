@@ -1,0 +1,58 @@
+Assignment 3: Popularity of Music Records
+========================================================
+
+Loading and Pre-Processing
+----------------------------------------------------------
+```{r fig.width=7, fig.height=6}
+songs = read.csv("C:/Users/Bramson/Documents/songs.csv")
+str(songs)
+SongsTrain = subset(songs, songs$year <= 2009)
+nrow(SongsTrain)
+SongsTest  = subset(songs, songs$year > 2009)
+nrow(SongsTest)
+```
+Model Construction
+----------------------------------------------------------
+We need to exclude non-numeric variables before we build the model.
+```{r}
+nonvars = c("year", "songtitle", "artistname", "songID", "artistID")
+SongsTrain = SongsTrain[ , !(names(SongsTrain) %in% nonvars) ]
+SongsTest = SongsTest[ , !(names(SongsTest) %in% nonvars) ]
+SongsLog1 = glm(Top10 ~ ., data=SongsTrain, family=binomial)
+summary(SongsLog1)
+```
+Multicollinearity Check
+------------------------------------------------------------
+```{r}
+cor(SongsTrain$energy, SongsTrain$loudness)
+```
+Creating Models 2 and 3 (removing loudness or energy)
+-----------------------------------------------------------
+```{r}
+SongsLog2 = glm(Top10 ~ . - loudness, data=SongsTrain, family=binomial)
+summary(SongsLog2)
+SongsLog3 = glm(Top10 ~ . - energy, data=SongsTrain, family=binomial)
+summary(SongsLog3)
+```
+Predictions on Test set using Model 3
+-------------------------------------------------------------------
+```{r}
+SongsPred3 = predict(SongsLog3, type="response", newdata=SongsTest)
+SongsPred3Table = table(SongsTest$Top10, SongsPred3 >= 0.45)
+SongsPred3Table
+```
+Accuracy of the prediction for a threshold of 0.45:
+```{r}
+(SongsPred3Table[1,1] + SongsPred3Table[2,2]) / nrow(SongsTest)
+```
+Baseline accuracy:
+```{r}
+sum(SongsTest$Top10 == FALSE) / nrow(SongsTest)
+```
+Sensitivity:
+```{r}
+(SongsPred3Table[2,2]/sum(SongsPred3Table[2,]))
+```
+Specificity:
+```{r}
+(SongsPred3Table[1,1]/sum(SongsPred3Table[1,]))

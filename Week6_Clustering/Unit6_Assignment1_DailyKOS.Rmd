@@ -1,0 +1,47 @@
+Unit 6 - Clustering: Assignment 1 - Daily Kos Clustering
+========================================================
+Data Loading and Pre-Processing
+===================================
+```{r}
+dailykos = read.csv("dailykos.csv")
+str(dailykos)
+```
+Hierarchical Clustering
+============================
+Warning: This will take forever to compute (~3-5 minutes)
+```{r}
+kosDist = dist(dailykos, method="euclidean")
+kosHierClust = hclust(kosDist, method="ward.D")
+plot(kosHierClust)
+hierGroups = cutree(kosHierClust, k = 7)
+sum(hierGroups==3)
+
+HierCluster = split(dailykos, hierGroups) #Allows us to access contents of a cluster by typing HierCluster[[n]]
+tail(sort(colMeans(HierCluster[[1]]))) #Returns 6 most common words in the 1st cluster
+tail(sort(colMeans(HierCluster[[2]]))) 
+tail(sort(colMeans(HierCluster[[3]]))) 
+tail(sort(colMeans(HierCluster[[4]]))) 
+tail(sort(colMeans(HierCluster[[5]]))) 
+tail(sort(colMeans(HierCluster[[6]]))) 
+tail(sort(colMeans(HierCluster[[7]]))) 
+```
+K-Means Clustering
+=================================
+```{r}
+k=7
+set.seed(1000)
+KMC = kmeans(dailykos, centers=k)
+KMCGroups = KMC$cluster
+KMCCluster = split(dailykos, KMCGroups)
+tail(sort(colMeans(KMCCluster[[1]]))) #Returns 6 most common words in the 1st cluster
+tail(sort(colMeans(KMCCluster[[2]]))) 
+tail(sort(colMeans(KMCCluster[[3]]))) 
+tail(sort(colMeans(KMCCluster[[4]]))) 
+tail(sort(colMeans(KMCCluster[[5]]))) 
+tail(sort(colMeans(KMCCluster[[6]]))) 
+tail(sort(colMeans(KMCCluster[[7]])))
+```
+Comparing the Clustering Methods
+=========================================
+```{r}
+table(hierGroups, KMCGroups)

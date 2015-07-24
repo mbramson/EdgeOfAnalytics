@@ -1,0 +1,87 @@
+Unit 5 - Text Analytics: Recitation - Enron Analysis
+========================================================
+Data Loading and Pre-Processing
+----------------------------------------
+```{r}
+emails = read.csv("energy_bids.csv", stringsAsFactors=FALSE)
+str(emails)
+#emails$email[1]
+#emails$responsive[1]
+table(emails$responsive)
+```
+Corpus Construction
+--------------------------------
+```{r}
+suppressWarnings(library(tm))
+corpus = Corpus(VectorSource(emails$email))
+toString(corpus[[1]])
+```
+Corpus Transformation
+---------------------------------
+```{r}
+corpus = tm_map(corpus, content_transformer(tolower))
+corpus = tm_map(corpus, removePunctuation)
+corpus = tm_map(corpus, removeWords, stopwords("english"))
+corpus = tm_map(corpus, stemDocument)
+toString(corpus[[1]])
+```
+Creating Document Term Matrix
+---------------------------------
+```{r}
+dtm = DocumentTermMatrix(corpus)
+dtm
+dtm = removeSparseTerms(dtm, 0.97)
+dtm
+labeledTerms = as.data.frame(as.matrix(dtm))
+labeledTerms$responsive = emails$responsive
+```
+Preparing Dataset for Modeling
+==========================================
+```{r}
+suppressWarnings(library(caTools))
+set.seed(144)
+spl = sample.split(labeledTerms$responsive, 0.7)
+train = subset(labeledTerms, spl == TRUE)
+test = subset(labeledTerms, spl == FALSE)
+```
+Baseline Model
+===========================================
+```{r}
+basetable = table(test$responsive)
+```
+**Accuracy:** `r max(c(basetable[1],basetable[2]))/(basetable[1]+basetable[2])`
+
+In document retrieval applications, there are uneven costs in these models. A human will have to review all positive predictions. False Positives will require work but won't hurt. False Negatives will not be reviewed and thus will not be seen. So there are higher costs associated with False Negatives than there are with False Positives.
+CART Model
+=============================================
+```{r}
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+emailCART = rpart(responsive ~ ., data=train, method="class")
+prp(emailCART)
+```
+Evaluating CART Model
+-----------------------------------------------
+```{r}
+pred = predict(emailCART, newdata=test)
+pred.prob = pred[,2]
+predtable = table(test$responsive, pred.prob >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / nrow(test)`
+Building an ROC Curve
+==============================================
+```{r}
+suppressWarnings(library(ROCR))
+predROCR = prediction(pred.prob, test$responsive)
+perfROCR = performance(predROCR, "tpr", "fpr")
+plot(perfROCR, colorize=TRUE)
+points(0.19, 0.72)
+points(0.15, 0.675)
+```
+Looks like a cutoff of about a 15% cutoff would reduce the manual effort needed in the review process.
+```{r}
+auc = performance(predROCR, "auc")@y.values
+auc
+```
+This looks like the model can accurately classify about `r auc` percent of the values.

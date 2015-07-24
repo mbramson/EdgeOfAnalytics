@@ -1,0 +1,68 @@
+Unit 7 - Visualizations : Recitation - Good and Bad Visualizations
+============================================
+Data Loading and Pre-Processing
+-----------------------------------------
+```{r}
+suppressWarnings(library(ggplot2))
+intl = read.csv("intl.csv")
+str(intl)
+ggplot(intl, aes(x=Region, y=PercentOfIntl)) + geom_bar(stat="identity") + geom_text(aes(label=PercentOfIntl))
+intl = transform(intl, Region = reorder(Region, -PercentOfIntl)) #Reorder
+str(intl)
+intl$PercentOfIntl = intl$PercentOfIntl * 100 #percentages more evident
+```
+Building a better barplot
+------------------------------
+```{r}
+barplot = ggplot(intl, aes(x=Region,y=PercentOfIntl))
+barplot = barplot + geom_bar(stat="identity", fill="dark blue") #Add Bar Plot
+barplot = barplot + geom_text(aes(label=PercentOfIntl), vjust=-0.4) #Add labels to bars
+barplot = barplot + ylab("Percent of International Students") #Add y axis label
+barplot = barplot + theme(axis.title.x=element_blank(), axis.text.x=element_text(angle=45,hjust=1))
+barplot
+```
+Putting the Data on a World Map
+====================================
+```{r}
+suppressWarnings(library(ggmap))
+intlall = read.csv("intlall.csv", stringsAsFactors=FALSE)
+head(intlall)
+intlall[is.na(intlall)] = 0 #Cast na values to 0
+head(intlall)
+world_map = map_data("world")
+str(world_map)
+world_map = merge(world_map, intlall, by.x="region", by.y="Citizenship") #Merge the two data frames together
+str(world_map)
+```
+Plotting the map
+------------------------
+```{r}
+worldplot = ggplot(world_map, aes(x=long, y=lat, group=group)) # put the data in
+worldplot = worldplot + geom_polygon(fill="white", color="black") # Plot the map
+worldplot = worldplot + coord_map("mercator") # mercator projection
+worldplot
+```
+Problem is that we've reordered the data with merge. We need to order it right
+```{r}
+world_map = world_map[order(world_map$group, world_map$order),] # Reorderd stuff correctly!
+worldplot = ggplot(world_map, aes(x=long, y=lat, group=group)) # put the data in
+worldplot = worldplot + geom_polygon(fill="white", color="black") # Plot the map
+worldplot = worldplot + coord_map("mercator") # mercator projection
+worldplot
+```
+Looking better but we're still missing some countries. This is because there are no students from those countries. Problem is china and russia did not have common names between the dataframes
+```{r}
+table(intlall$Citizenship)
+intlall$Citizenship[intlall$Citizenship=="China (People's Republic Of)"] = "China"
+world_map = merge(map_data("world"), intlall, by.x="region", by.y="Citizenship") #Re-Merge
+world_map = world_map[order(world_map$group, world_map$order),] # Reorderd stuff correctly!
+worldplot = ggplot(world_map, aes(x=long, y=lat, group=group)) # put the data in
+worldplot = worldplot + geom_polygon(aes(fill=Total), color="black") # Filling based on Total Students now
+worldplot = worldplot + coord_map("mercator") # mercator projection
+worldplot
+```
+We've added back in China! Let's try an orthographic projection
+```{r}
+worldplot = worldplot + coord_map("ortho", orientation=c(20,30,0))
+worldplot
+```

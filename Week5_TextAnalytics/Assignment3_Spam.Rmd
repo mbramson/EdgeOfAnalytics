@@ -1,0 +1,161 @@
+Unit 5 - Text Analytics : Assignment 3 - Spam
+========================================================
+Data Loading
+========================================
+```{r}
+emails = read.csv("emails.csv", stringsAsFactors=FALSE)
+str(emails)
+which.min(nchar(emails$text))
+```
+Corpus Construction
+==================================
+```{r}
+suppressWarnings(suppressMessages(library(tm)))
+corpus = Corpus(VectorSource(emails$text))
+corpus = tm_map(corpus, content_transformer(tolower))
+corpus = tm_map(corpus, removePunctuation)
+corpus = tm_map(corpus, removeWords, stopwords("english"))
+corpus = tm_map(corpus, stemDocument)
+```
+Document Term Matrix
+---------------------------------------
+```{r}
+dtm = DocumentTermMatrix(corpus)
+spdtm = removeSparseTerms(dtm, 0.95)
+```
+Data Frame Construction
+====================================
+```{r}
+emailsSparse = as.data.frame(as.matrix(spdtm))
+colnames(emailsSparse) = make.names(colnames(emailsSparse))
+which.max(colSums(emailsSparse))
+emailsSparse$spam = emails$spam
+emailsSparse$spam = as.factor(emailsSparse$spam)
+```
+Splitting the Data
+====================================
+```{r}
+suppressWarnings(library(caTools))
+set.seed(123)
+spl = sample.split(emailsSparse$spam, SplitRatio=0.7)
+train = subset(emailsSparse, spl == TRUE)
+test = subset(emailsSparse, spl == FALSE)
+```
+Baseline Model
+===============================
+```{r}
+basetable = table(test$spam)
+```
+**Accuracy:** `r max(c(basetable[1],basetable[2]))/(basetable[1]+basetable[2])`
+Modeling on the Training Set
+======================================================
+Logistic Regression Model
+================================================
+```{r}
+spamLog = glm(spam ~ ., data=train, family=binomial)
+summary(spamLog)
+```
+Logistic Regression Predictions
+-------------------------------------------
+```{r}
+pred = predict(spamLog, newdata=train, type="response")
+predtable = table(train$spam, pred >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / nrow(train)`
+Logistic Regression ROCR AUC
+---------------------------
+```{r}
+suppressWarnings(suppressMessages(library(ROCR)))
+predROCR = prediction(pred, train$spam)
+performance(predROCR, "auc")@y.values
+```
+CART Model
+==============================================
+```{r}
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+spamCART = rpart(spam ~ ., data=train, method="class")
+prp(spamCART)
+```
+CART Predictions
+------------------------------------------
+```{r}
+pred = predict(spamCART)
+pred.prob = pred[,2]
+predtable = table(train$spam, pred.prob >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / nrow(train)`
+CART ROCR AUC
+---------------------------
+```{r}
+predROCR = prediction(pred.prob, train$spam)
+performance(predROCR, "auc")@y.values
+```
+Random Forest Model
+====================================
+```{r}
+suppressWarnings(library(randomForest))
+set.seed(123)
+spamRF = randomForest(spam ~ ., data=train)
+```
+Random Forest Predictions
+------------------------------
+```{r}
+pred = predict(spamRF, type="prob")[,2]
+predtable = table(train$spam, pred >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / nrow(train)`
+Random Forest ROCR AUC
+---------------------------
+```{r}
+predROCR = prediction(pred, train$spam)
+performance(predROCR, "auc")@y.values
+```
+Predictions on the Testing Set
+=======================================
+Logistic Regression Predictions on the Test Data
+======================================
+```{r}
+pred = predict(spamLog, newdata=test, type="response")
+predtable = table(test$spam, pred >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / sum(predtable)`
+Logistic Regression ROCR AUC
+---------------------------
+```{r}
+predROCR = prediction(pred, test$spam)
+performance(predROCR, "auc")@y.values
+```
+CART Predictions on the Test Data
+=============================================
+```{r}
+pred = predict(spamCART, newdata=test)
+pred.prob = pred[,2]
+predtable = table(test$spam, pred.prob >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / sum(predtable)`
+CART ROCR AUC
+---------------------------
+```{r}
+predROCR = prediction(pred.prob, test$spam)
+performance(predROCR, "auc")@y.values
+```
+Random Forest Predictions on the Test Data
+============================================
+```{r}
+pred = predict(spamRF, newdata=test, type="prob")[,2]
+predtable = table(test$spam, pred >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / sum(predtable)`
+Random Forest ROCR AUC
+---------------------------
+```{r}
+predROCR = prediction(pred, test$spam)
+performance(predROCR, "auc")@y.values
+```

@@ -1,0 +1,87 @@
+Week 3 - Logistic Regression - Recitation Examples
+========================================================
+
+Load Data
+--------------------------------------------------------
+Let's load the dataset and take a look at what's inside.
+```{r}
+polling = read.csv("C:/Users/Bramson/Documents/PollingData.csv")
+str(polling)
+```
+
+There are missing values. We are going to use imputation to fill these values in.
+```{r}
+library(mice)
+```
+
+Process Data - Imputation
+------------------------------------------------------
+For our imputation to be useful, we have to create a dataframe that does not contain the dependent variable, Republican.
+```{r}
+simple = polling[c("Rasmussen","SurveyUSA", "PropR", "DiffCount")]
+summary(simple)
+set.seed(144)
+imputed = complete(mice(simple))
+summary(imputed)
+polling$Rasmussen = imputed$Rasmussen
+polling$SurveyUSA = imputed$SurveyUSA
+```
+
+Process Data - Split Into Train/Test
+-------------------------------------------------------
+```{r}
+train = subset(polling, Year == 2004 | Year == 2008)
+test = subset(polling, Year == 2012)
+table(train$Republican)
+```
+Looks like our baseline model will be 0.53. This is not a strong baseline model, as it essentially predicts that republicans will win always.
+
+Process Data - Create smart Variable
+-------------------------------------------------------
+We will use the sign function to change the Rasmussen variable into a suitable independent variable that is 1 if Republicans are projected to win (no matter by how much) and -1 if Democrats are projected to wind (no matter by how much). It will also return 0 if there is a tie.
+```{r}
+table(sign(train$Rasmussen))
+```
+Now let's see how this new smart predictor actually compares to the outcome of the election.
+```{r}
+table(train$Republican, sign(train$Rasmussen))
+```
+This model made only 4 mistakes, which is a much better model than baseline, which made 47 mistakes.
+
+Testing for multicolinearity
+--------------------------------------------------------
+Note: We have to take out any Factor variables, so that only numerics remain, otherwise cor() throws an error
+```{r}
+cor(train[c("Rasmussen","SurveyUSA","PropR","DiffCount","Republican")])
+```
+correlations are very high, which suggests that using more than one independent variable will probably not improve the model greatly.
+
+Constructing the model
+--------------------------------------------------------
+The variable we'd like to try first is the one that correlates highest with the Republican variable. In this case that is PropR.
+```{r}
+model1 = glm(Republican ~ PropR, data = train, family="binomial")
+summary(model1)
+```
+Predictions on Testing Set
+----------------------------------------------------------
+```{r}
+pred1 = predict(model1, type="response")
+table(train$Republican, pred1 >= 0.5)
+```
+Looks like this model makes 4 mistakes, which is the same as our smart baseline model from before. Let's see if we can improve this.
+
+Let's look for two variables that are not highly correlated so that they complement each other on the model.
+
+We are going to pick SurveyUSA and DiffCount together because their correlation is 0.522, which is comparatively low.
+```{r}
+model2 = glm(Republican ~ SurveyUSA + DiffCount, data = train, family="binomial")
+summary(model2)
+pred2 = predict(model2, type="response")
+table(train$Republican, pred2 >= 0.5)
+```
+This model makes only 3 mistakes, which is better than the baseline and the previous model!
+
+The AIC Is also smaller for the second model than the first, which suggests a stronger model.
+
+A weakness of this new model is  that neither of the two independent variables are significant.

@@ -1,0 +1,65 @@
+Assignment 1
+========================================================
+```{r}
+gerber = read.csv("gerber.csv")
+str(gerber)
+summary(gerber)
+tapply(gerber$voting, gerber$civicduty, mean)
+tapply(gerber$voting, gerber$hawthorne, mean)
+tapply(gerber$voting, gerber$self, mean)
+tapply(gerber$voting, gerber$neighbors, mean)
+```
+Constructing the Logistic Regression Model
+---------------------------------------------------------
+```{r}
+gerber.logReg = glm(voting ~ civicduty + hawthorne + self + neighbors, data=gerber,  family=binomial)
+summary(gerber.logReg)
+pred = predict(gerber.logReg, type="response")
+PredTable = table(gerber$voting, pred >= 0.3)
+PredTable
+```
+Accuracy:
+```{r}
+(PredTable[1,1] + PredTable[2,2]) / nrow(gerber)
+```
+AUC:
+```{r}
+suppressWarnings(library(ROCR))
+ROCRpred = prediction(pred, gerber$voting)
+as.numeric(performance(ROCRpred, "auc")@y.values)
+```
+Building our CART Model
+==============================================================
+```{r}
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+CARTmodel = rpart(voting ~ civicduty + hawthorne + self + neighbors + sex, data=gerber, cp=0.0)
+prp(CARTmodel)
+```
+Building a Single Variable Regression Tree
+------------------------------------------------------------
+```{r}
+Model2 = rpart(voting ~ control, data=gerber, cp=0.0)
+prp(Model2, digits=6)
+Model3 = rpart(voting ~ control + sex, data=gerber, cp=0.0)
+prp(Model3, digits=6)
+```
+Logistic Regression
+-----------------------------------------------------------
+```{r}
+LogModelSex = glm(voting ~ control + sex, data=gerber,  family=binomial)
+summary(LogModelSex)
+```
+Quantifying Join Possibility
+```{r}
+Possibilities = data.frame(sex=c(0,0,1,1),control=c(0,1,0,1))
+predict(LogModelSex, newdata=Possibilities, type="response")
+```
+Another Logistic Regression
+---------------------------------------------------------
+```{r}
+LogModel2 = glm(voting ~ sex + control + sex:control, data=gerber, family="binomial")
+summary(LogModel2)
+pred = predict(LogModel2, newdata=Possibilities, type="response")
+pred
+```

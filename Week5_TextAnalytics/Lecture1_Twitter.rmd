@@ -1,0 +1,137 @@
+Unit 5 - Text Analytics: Lecture 1: Twitter
+========================================================
+Loading and Pre-Processing the Data
+---------------------------------------------------
+Be sure to specify stringsAsFactors=FALSE in read.csv.
+```{r}
+tweets = read.csv("tweets.csv", stringsAsFactors=FALSE)
+str(tweets)
+```
+We want to be able to detect negative sentiment
+```{r}
+tweets$Negative = as.factor(tweets$Avg <= -1)
+table(tweets$Negative)
+suppressWarnings(suppressMessages(library(tm)))
+suppressWarnings(suppressMessages(library(SnowballC)))
+```
+We need to create a corpus
+```{r}
+corpus = Corpus(VectorSource(tweets$Tweet))
+corpus
+corpus[[1]]
+```
+Let's convert everything to lowercase letters.
+```{r}
+#corpus = tm_map(corpus, tolower)
+corpus = tm_map(corpus, content_transformer(tolower))
+corpus[[1]]
+```
+Let's remove punctuation
+```{r}
+corpus = tm_map(corpus, removePunctuation)
+corpus[[1]]
+```
+Now let's remove stop words (and also the word "apple")
+```{r}
+corpus = tm_map(corpus, removeWords, c("apple", stopwords("english")))
+corpus[[1]]
+```
+Now let's stem our tweets.
+```{r}
+corpus = tm_map(corpus, stemDocument)
+corpus[[1]]
+```
+Bag of Words Application
+=============================================
+```{r}
+frequencies = DocumentTermMatrix(corpus)
+frequencies
+inspect(frequencies[1000:1005, 505:515])
+```
+These are all words that appear more than 20 times.
+```{r}
+findFreqTerms(frequencies, lowfreq=20)
+```
+Textual PreProcessing
+--------------------------------------
+Let's remove some sparse terms. Only keep terms that only appear in 0.5% or more of the tweets. If we had said 0.99, it would keep only terms that appear in 1% or more of tweets.
+```{r}
+sparse = removeSparseTerms(frequencies, 0.995)
+sparse
+tweetsSparse = as.data.frame(as.matrix(sparse))
+```
+R struggles with names that start with numbers, so let's replace those.
+```{r}
+colnames(tweetsSparse) = make.names(colnames(tweetsSparse))
+```
+Let's establish our dependant variable (Negative) and pre-process our dataset.
+Splitting and Establishing Dependant Variable
+------------------------------------------
+```{r}
+tweetsSparse$Negative = tweets$Negative
+suppressWarnings(library(caTools))
+set.seed(123)
+split = sample.split(tweetsSparse$Negative, SplitRatio=0.7)
+trainSparse = subset(tweetsSparse, split==TRUE)
+testSparse = subset(tweetsSparse, split == FALSE)
+```
+Building Our Predictive Model
+============================================
+CART Model
+=====================================
+```{r}
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+tweetCART = rpart(Negative ~ ., data=trainSparse, method="class")
+prp(tweetCART)
+```
+CART Predictions
+------------------------------------
+```{r}
+predictCART = predict(tweetCART, newdata=testSparse, type="class")
+predtable = table(testSparse$Negative, predictCART)
+```
+Accuracy:
+```{r}
+(predtable[1,1] + predtable[2,2])/nrow(testSparse)
+```
+Baseline Accuracy
+----------------------------
+```{r}
+temp = table(testSparse$Negative)
+temp
+temp[1]/(temp[1]+temp[2])
+```
+So our CART Model has beaten the Baseline model.
+Random Forest Model
+=========================================
+```{r}
+suppressWarnings(library(randomForest))
+set.seed(123)
+#tweetRF = randomForest(Negative ~ ., data=trainSparse)
+```
+The Random Forest takes much longer because we have so many independant variables in our dataset.
+Random Forest Predictions
+--------------------------------------
+```{r}
+#predictRF = predict(tweetRF, newdata=testSparse)
+#predtable = table(testSparse$Negative, predictRF)
+```
+Accuracy:
+```{r}
+#(predtable[1,1] + predtable[2,2])/nrow(testSparse)
+```
+This is even better than our CART Model!
+Logistic Regression Model
+=================================================
+```{r}
+tweetsLog = glm(Negative ~ ., data=trainSparse,  family=binomial)
+summary(tweetsLog)
+predictLog = predict(tweetLog, newdata=testSparse, type="response")
+predtable = table(testSparse$Negative, predictCART)
+predtable
+```
+Accuracy:
+```{r}
+(predtable[1,1] + predtable[2,2])/nrow(testSparse)
+```

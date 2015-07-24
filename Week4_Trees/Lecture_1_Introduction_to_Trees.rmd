@@ -1,0 +1,122 @@
+Unit 4 - Lecture 1 : Introduction to Trees
+========================================================
+Loading and Pre-processing The Data
+--------------------------------------------------------
+```{r}
+stevens = read.csv("stevens.csv")
+str(stevens)
+summary(stevens)
+suppressWarnings(library(caTools))
+set.seed(3000)
+spl = sample.split(stevens$Reverse, SplitRatio=0.7)
+train = subset(stevens, spl == TRUE)
+test = subset(stevens, spl == FALSE)
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+```
+Building our CART Model
+----------------------------------------------------------
+```{r}
+StevensTree = rpart(Reverse ~ Circuit + Issue + Petitioner + Respondent + LowerCourt + Unconst, data=train, method="class", minbucket=25)
+```
+```{r fig.width=11, fig.height=4}
+prp(StevensTree)
+```
+Predictions with the CART Model
+----------------------------------------------------------
+```{r}
+predictCART = predict(StevensTree, newdata=test, type="class")
+predictTable = table(test$Reverse, predictCART)
+predictTable
+```
+Accuracy: `r (predictTable[1,1] + predictTable[2,2]) / nrow(test)`
+
+Sensitivity: `r predictTable[2,2] / sum(predictTable[2,])`
+
+Specificity: `r predictTable[1,1] / sum(predictTable[1,])`
+
+ROC Curve
+---------------------------------------------------------
+```{r}
+suppressWarnings(suppressMessages(library(ROCR)))
+predictROC = predict(StevensTree, newdata=test)
+pred = prediction(predictROC[,2], test$Reverse)
+perf = performance(pred,"tpr","fpr")
+plot(perf)
+```
+
+AUC: `r as.numeric(performance(pred, "auc")@y.values)`
+
+Random Forests
+=========================================================
+We build many CART models, using bootstrapping to select random samples. We sample without replacement.
+```{r}
+suppressWarnings(library(randomForest))
+train$Reverse = as.factor(train$Reverse)
+test$Reverse = as.factor(test$Reverse)
+set.seed(200)
+StevensForest = randomForest(Reverse ~ Circuit + Issue + Petitioner + Respondent + LowerCourt + Unconst, data=train, nodesize=25, ntree=200)
+```
+Predictions with the Random Forest Model
+---------------------------------------------------------
+```{r}
+PredictForest = predict(StevensForest, newdata=test)
+predictTable = table(test$Reverse, PredictForest)
+predictTable
+```
+Accuracy: `r (predictTable[1,1] + predictTable[2,2]) / nrow(test)`
+
+Sensitivity: `r predictTable[2,2] / sum(predictTable[2,])`
+
+Specificity: `r predictTable[1,1] / sum(predictTable[1,])`
+
+Cross-Validation
+========================================================
+We need a way to select the minbucket parameter, but we can't simply tweak using the test set to find the best minbucket parameter, because then we would be using the test set to train the model. We will use k-folds cross-validation.
+
+1. Split the training set into k equally sized subsets, or folds.
+
+2. We use (k-1) folds to estimate the model.
+
+3. Generate predictions on the remaining fold (referred to as the validation set)
+
+4. We build models based on each parameter that we're considering.
+
+5. Repeat on each of the folds.
+
+This ends up building many models, one for each fold, and one for each parameter value.
+
+We average the accuracy over the k folds, to try to find the one that maximizes the average accuracy of the model.
+
+We use cp parameter for this model. Smaller cp leads to a bigger tree, so a smaller value may overfit. cp value that is too large might build one that is too simple.
+
+Cross Validation on the model
+------------------------------------------------------------
+```{r}
+suppressWarnings(library(caret))
+suppressWarnings(library(e1071))
+numFolds = trainControl(method="cv", number = 10) #"cv" for cross-validation
+cpGrid = expand.grid(.cp=seq(0.01,0.5,0.01))
+train(Reverse ~ Circuit + Issue + Petitioner + Respondent + LowerCourt + Unconst, data=train, method="rpart", trControl=numFolds, tuneGrid=cpGrid)
+```
+We will use a cp of 0.19, as that is the one with the largest accuracy.
+
+Constructing a model using The CP Value
+------------------------------------------------------
+```{r}
+StevensTreeCV = rpart(Reverse ~ Circuit + Issue + Petitioner + Respondent + LowerCourt + Unconst, data=train, method="class", cp=0.19)
+PredictCV = predict(StevensTreeCV, newdata=test, type="class")
+predictTable = table(test$Reverse, PredictCV)
+predictTable
+```
+Accuracy: `r (predictTable[1,1] + predictTable[2,2]) / nrow(test)`
+
+Sensitivity: `r predictTable[2,2] / sum(predictTable[2,])`
+
+Specificity: `r predictTable[1,1] / sum(predictTable[1,])`
+
+Cross validation has significantly increased the accuracy. If we already happened to select a good parameter value, it might not have increased much. Cross-Validation helps ensure that you have selected a smart parameter.
+
+```{r}
+prp(StevensTreeCV)
+```

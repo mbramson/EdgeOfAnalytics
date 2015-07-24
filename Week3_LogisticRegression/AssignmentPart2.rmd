@@ -1,0 +1,75 @@
+Assignment 3: Predicting Parole Violaters
+========================================================
+Loading and Pre-Processing
+----------------------------------------------------------
+```{r}
+parole = read.csv("parole.csv")
+parole$state = as.factor(parole$state)
+parole$crime = as.factor(parole$crime)
+str(parole)
+summary(parole)
+sum(parole$violator == 1)
+```
+Splitting the data into training and testing sets
+---------------------------------------------------------
+```{r}
+set.seed(144)
+library(caTools)
+split = sample.split(parole$violator, SplitRatio = 0.7)
+train = subset(parole, split == TRUE)
+test = subset(parole, split == FALSE)
+c(nrow(train), nrow(test))
+```
+Building the Logistic Regression Model
+--------------------------------------------------------
+```{r}
+Model1 = glm(violator ~ ., data = train, family=binomial)
+summary(Model1)
+```
+Evaluating Odds for Specific Case
+-----------------------------------------------------
+```{r}
+beta = Model1$coefficients
+beta
+logit = beta[1] + beta[2]*1 + beta[3]*1 + beta[4]*50 + beta[8]*3 + beta[9]*12 + beta[11]*1
+```
+Odds
+```{r}
+exp(logit)
+```
+Calculating the probability of this person being a vaiolator.
+```{r}
+1/(1+exp(-logit))
+```
+Predictions on the Test Set
+-------------------------------------------------------
+```{r}
+Pred1 = predict(Model1, type="response", newdata=test)
+summary(Pred1)
+PredTable = table(test$violator, Pred1 >= 0.5)
+PredTable
+```
+Sensitivity:
+```{r}
+(PredTable[2,2]/sum(PredTable[2,]))
+```
+Specificity:
+```{r}
+(PredTable[1,1]/sum(PredTable[1,]))
+```
+Accuracy:
+```{r}
+(PredTable[1,1] + PredTable[2,2]) / nrow(test)
+```
+Baseline Model (Everyone is a non-violator)
+```{r}
+table(test$violator)
+mean(test$violator == 0)
+```
+ROCR Curve Production
+---------------------------------------------------------
+```{r}
+library(ROCR)
+ROCRpred = prediction(Pred1, test$violator)
+as.numeric(performance(ROCRpred, "auc")@y.values)
+```

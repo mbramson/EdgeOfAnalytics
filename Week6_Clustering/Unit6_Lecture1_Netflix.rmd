@@ -1,0 +1,45 @@
+Unit 6 - Clustering: Lecture 1 - Netflix
+================================================
+Loading and Pre-Processing the Dataset
+=================================
+Add column names, remove variables we aren't using, and remove non-unique movies.
+```{r}
+movies = read.table("movieLens.txt", header=FALSE, sep="|", quote="\"")
+colnames(movies) = c("ID", "Title", "ReleaseDate", "VideoReleaseDate", "IMDB", "Unknown", "Action", "Adventure", "Animation", "Childrens", "Comedy", "Crime", "Documentary", "Drama", "Fantasy", "FilmNoir", "Horror", "Musical", "Mystery", "Romance", "SciFi", "Thriller", "War", "Western")
+movies$ID = NULL
+movies$ReleaseDate = NULL
+movies$VideoReleaseDate = NULL
+movies$IMDB = NULL
+movies = unique(movies)
+str(movies)
+```
+Hierarchical Clustering
+=================================
+```{r}
+distances = dist(movies[2:20], method="euclidean")
+clusterMovies = hclust(distances, method="ward.D")
+plot(clusterMovies)
+```
+Too many datapoints, so all of the x-axis is essentially black. These are overlapped labels.
+```{r}
+clusterGroups = cutree(clusterMovies, k = 10)
+tapply(movies$Action, clusterGroups, mean)
+```
+This divides the movies into the clusters defined by clusterGroups and then gives the average rating for movies$Action for that cluster
+```{r}
+subset(movies, Title=="Men in Black (1997)")
+clusterGroups[257]
+cluster2 = subset(movies, clusterGroups == 2)
+cluster2$Title[1:10]
+```
+Looking at a Specific Cluster Group
+=============================================
+```{r}
+colMeans(subset(movies[2:20], clusterGroups == 1))
+```
+Using Split and lapply To Look at All Clusters
+=================================================
+```{r}
+spl = split(movies[2:20], clusterGroups)
+colMeans(spl[[1]])
+lapply(spl, colMeans)

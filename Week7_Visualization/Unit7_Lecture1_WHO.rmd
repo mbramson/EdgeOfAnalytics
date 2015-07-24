@@ -1,0 +1,59 @@
+Unit 7 - Visualizations : Lecture 1 - WHO
+=============================================
+Data Loading and Pre-Processing
+------------------------------------
+```{r}
+WHO = read.csv("WHO.csv")
+str(WHO)
+```
+Plotting
+================
+```{r}
+plot(WHO$GNI, WHO$FertilityRate)
+```
+GGPlot2 Plotting
+--------------------------
+```{r}
+suppressWarnings(library(ggplot2))
+scatterplot = ggplot(WHO, aes(x = GNI, y=FertilityRate))
+scatterplot + geom_point()
+scatterplot + geom_line()
+scatterplot + geom_point(color="blue", size=3, shape=17)
+fertilityGNIplot = scatterplot + geom_point(color="darkred", size=3, shape=15) + ggtitle("Fertility Rate vs. Gross National Income")
+fertilityGNIplot
+```
+Save our file
+===========================
+```{r}
+pdf("MyPlot.pdf")
+print(fertilityGNIplot)
+dev.off()
+```
+Color our Points by Other Variables
+===============================
+```{r}
+ggplot(WHO, aes(x = GNI, y = FertilityRate, color=Region)) + geom_point() + ggtitle("Colored by Region (Categorical Variable)")
+ggplot(WHO, aes(x = GNI, y = FertilityRate, color=LifeExpectancy)) + geom_point() + ggtitle("Colored by Life Expectancy (Continuous Variable)")
+```
+Log Plotting
+-----------------
+```{r}
+ggplot(WHO, aes(x = FertilityRate, y = Under15)) + geom_point()
+```
+This looks like there is a log model.
+```{r}
+ggplot(WHO, aes(x = log(FertilityRate), y = Under15)) + geom_point()
+model = lm(Under15 ~ log(FertilityRate), data=WHO)
+summary(model)
+```
+Looks like the model fits very well. We may not have noticed that this would occur without the visualization.
+Adding the new fit line
+====================================
+```{r}
+ggplot(WHO, aes(x = log(FertilityRate), y = Under15)) + geom_point() + stat_smooth(method="lm", level=0.99)
+ggplot(WHO, aes(x = log(FertilityRate), y = Under15)) + geom_point() + stat_smooth(method="lm", se=FALSE, color="orange")
+```
+Pallete Adjustment
+======================
+```{r}
+ggplot(WHO, aes(x = FertilityRate, y = Under15, color=Region)) + geom_point() + scale_color_brewer(palette="Dark2")

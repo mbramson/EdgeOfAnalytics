@@ -1,0 +1,127 @@
+Unit 4 - Trees : Assignment 3 - Census Earnings
+========================================================
+Loading and Pre-Processing the data
+--------------------------------------
+```{r}
+census = read.csv("census.csv")
+str(census)
+summary(census)
+suppressWarnings(library(caTools))
+set.seed(2000)
+spl = sample.split(census$over50k, SplitRatio = 0.6)
+train = subset(census, spl == TRUE)
+test = subset(census, spl == FALSE)
+```
+Building a Logistic Regression Model
+=========================================
+```{r}
+census.logReg = glm(over50k ~ ., data=train,  family=binomial)
+summary(census.logReg)
+pred = predict(census.logReg, newdata=test, type="response")
+PredTable = table(test$over50k, pred >= 0.5)
+PredTable
+```
+Accuracy:
+```{r}
+(PredTable[1,1] + PredTable[2,2]) / nrow(test)
+```
+Baseline Accuracy
+```{r}
+testtable = table(test$over50k)
+testtable[1] / sum(testtable)
+```
+AUC
+--------------------------------------
+```{r}
+suppressWarnings(library(ROCR))
+ROCRpred = prediction(pred, test$over50k)
+as.numeric(performance(ROCRpred, "auc")@y.values)
+```
+Creating a CART Model
+=================================================
+```{r}
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+censustree = rpart(over50k ~ ., data=train, method="class")
+prp(censustree)
+```
+Predicting on the test set
+----------------------------------------
+```{r}
+pred = predict(censustree, newdata=test)
+predictTable = table(test$over50k, pred)
+predictTable
+```
+Computing the accuracy:
+```{r}
+(predictTable[1,1] + predictTable[2,2] )/nrow(test)
+```
+AUC
+------------------------
+```{r}
+pred = pred[,2]
+ROCRpred = prediction(pred, test$over50k)
+as.numeric(performance(ROCRpred, "auc")@y.values)
+```
+Building a Random Forest Model
+========================================
+We need to down-sample our dataset
+```{r}
+set.seed(1)
+trainSmall = train[sample(nrow(train), 2000), ]
+suppressWarnings(library(randomForest))
+set.seed(1)
+forest = randomForest(over50k ~ ., data=trainSmall, nodesize=25, ntree=200)
+```
+Predictions on the test set
+---------------------------------------------
+```{r}
+PredictForest = predict(forest, newdata=test)
+predictTable = table(test$over50k, PredictForest)
+predictTable
+```
+Computing the accuracy:
+```{r}
+(predictTable[1,1] + predictTable[2,2])/nrow(test)
+```
+Determining which variables split the data most often
+----------------------------------------
+```{r}
+vu = varUsed(forest, count=TRUE)
+vusorted = sort(vu, decreasing = FALSE, index.return = TRUE)
+dotchart(vusorted$x, names(forest$forest$xlevels[vusorted$ix]))
+```
+Calculating Impurity
+---------------------------------
+```{r}
+varImpPlot(forest)
+```
+Cross-Validation
+========================================
+```{r}
+suppressWarnings(library(caret))
+suppressWarnings(library(e1071))
+set.seed(2)
+numFolds = trainControl(method="cv", number = 10) #"cv" for cross-validation
+cartGrid = expand.grid( .cp = seq(0.002,0.1,0.002))
+#train(over50k ~ ., data=train, method="rpart", trControl=numFolds, tuneGrid=cartGrid)
+```
+Generating a CART Model with cp=0.002
+==============================================
+```{r}
+censustree = rpart(over50k ~ ., data=train, method="class", cp=0.002)
+prp(censustree)
+```
+Predicting on the test set
+----------------------------------------
+```{r}
+pred = predict(censustree, newdata=test, type="class")
+length(test$over50k)
+length(pred)
+predictTable = table(test$over50k, pred)
+predictTable
+```
+Computing the accuracy:
+```{r}
+(predictTable[1,1] + predictTable[2,2] )/nrow(test)
+```

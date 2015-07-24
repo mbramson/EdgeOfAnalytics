@@ -1,0 +1,58 @@
+Unit 6 - Clustering: Assignment 2 - Airlines
+==============================================
+Loading and Pre-Processing
+============================================
+```{r}
+airlines = read.csv("AirlinesCluster.csv")
+summary(airlines)
+suppressWarnings(library(caret))
+preproc = preProcess(airlines) #Pre-Process for normalization
+airlinesNorm = predict(preproc, airlines) #Perform Normalization
+summary(airlinesNorm)
+```
+Hierarchical Clustering
+=============================================
+```{r}
+airlinesDist = dist(airlinesNorm, method="euclidean")
+airlinesHierClust = hclust(airlinesDist, method="ward.D")
+plot(airlinesHierClust)
+hierGroups = cutree(airlinesHierClust, k = 5)
+HierCluster = split(airlines, hierGroups)
+nrow(HierCluster[[1]])
+```
+Calculating the Centroids with respect to each variable
+====================================================
+```{r}
+tapply(airlines$Balance, hierGroups, mean)
+tapply(airlines$QualMiles, hierGroups, mean)
+tapply(airlines$BonusMiles, hierGroups, mean)
+tapply(airlines$BonusTrans, hierGroups, mean)
+tapply(airlines$FlightMiles, hierGroups, mean)
+tapply(airlines$FlightTrans, hierGroups, mean)
+tapply(airlines$DaysSinceEnroll, hierGroups, mean)
+```
+K-Means Clustering
+================================================
+```{r}
+k=5
+set.seed(88)
+KMC = kmeans(airlinesNorm, centers=k, iter.max=1000)
+KMCGroups = KMC$cluster
+KMCCluster = split(airlines, KMCGroups)
+nrow(KMCCluster[[1]])
+nrow(KMCCluster[[2]])
+nrow(KMCCluster[[3]])
+nrow(KMCCluster[[4]])
+nrow(KMCCluster[[5]])
+```
+Calculating the Centroids with respect to each variable
+====================================================
+```{r}
+tapply(airlines$Balance, KMCGroups, mean)
+tapply(airlines$QualMiles, KMCGroups, mean)
+tapply(airlines$BonusMiles, KMCGroups, mean)
+tapply(airlines$BonusTrans, KMCGroups, mean)
+tapply(airlines$FlightMiles, KMCGroups, mean)
+tapply(airlines$FlightTrans, KMCGroups, mean)
+tapply(airlines$DaysSinceEnroll, KMCGroups, mean)
+```

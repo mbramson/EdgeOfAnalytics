@@ -1,0 +1,178 @@
+Unit 5 - Text Analytics: Assignment 1 - Wikipedia Vandalism
+========================================================
+Data Load
+============================
+```{r}
+wiki = read.csv("wiki.csv", stringsAsFactors=FALSE)
+str(wiki)
+table(wiki$Vandal)
+```
+Added Dataframe Construction
+================================
+Corpus Construction
+--------------------------------
+```{r}
+suppressWarnings(library(tm))
+corpusAdded = Corpus(VectorSource(wiki$Added))
+corpusAdded = tm_map(corpusAdded, removeWords, stopwords("english"))
+corpusAdded = tm_map(corpusAdded, stemDocument)
+```
+Creating Document Term Matrix
+---------------------------------
+```{r}
+dtmAdded = DocumentTermMatrix(corpusAdded)
+dtmAdded
+dtmAdded = removeSparseTerms(dtmAdded, 0.997)
+dtmAdded
+wordsAdded = as.data.frame(as.matrix(dtmAdded))
+colnames(wordsAdded) = paste("A", colnames(wordsAdded))
+```
+Removed Dataframe Construction
+==================================
+Corpus Construction
+--------------------------------
+```{r}
+corpusRemoved = Corpus(VectorSource(wiki$Removed))
+corpusRemoved = tm_map(corpusRemoved, removeWords, stopwords("english"))
+corpusRemoved = tm_map(corpusRemoved, stemDocument)
+```
+Creating Document Term Matrix
+---------------------------------
+```{r}
+dtmRemoved = DocumentTermMatrix(corpusRemoved)
+dtmRemoved
+dtmRemoved= removeSparseTerms(dtmRemoved, 0.997)
+dtmRemoved
+wordsRemoved = as.data.frame(as.matrix(dtmRemoved))
+colnames(wordsRemoved) = paste("R", colnames(wordsRemoved))
+```
+Combining the Added and Removed datasets
+--------------------------------------------
+```{r}
+wikiWords = cbind(wordsAdded, wordsRemoved)
+wikiWords$Vandal = wiki$Vandal
+```
+Modeling
+===================================
+Splitting the Data
+=======================================
+```{r}
+suppressWarnings(library(caTools))
+set.seed(123)
+spl = sample.split(wikiWords$Vandal, SplitRatio=0.7)
+train = subset(wikiWords, spl == TRUE)
+test = subset(wikiWords, spl == FALSE)
+```
+Baseline Model
+============================================
+```{r}
+basetable = table(wikiWords$Vandal)
+```
+**Accuracy:** `r max(c(basetable[1],basetable[2]))/(basetable[1]+basetable[2])`
+CART Model
+=====================================
+```{r}
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+wikiCART = rpart(Vandal ~ ., data=train, method="class")
+prp(wikiCART)
+```
+Evaluating CART Model
+-----------------------------------------------
+```{r}
+pred = predict(wikiCART, newdata=test)
+pred.prob = pred[,2]
+predtable = table(test$Vandal, pred.prob >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / nrow(test)`
+Incorporating Problem-Specific Knowledge
+===============================================
+Adding Link Data
+----------------------------
+Let's add a column that is one if any word in added contains "http"
+```{r}
+wikiWords2 = wikiWords
+wikiWords2$HTTP = ifelse(grepl("http",wiki$Added,fixed=TRUE), 1, 0)
+sum(wikiWords2$HTTP)
+```
+Split the Data
+-----------------------------------
+```{r}
+wikiTrain2 = subset(wikiWords2, spl==TRUE)
+wikiTest2 = subset(wikiWords2, spl==FALSE)
+```
+New CART Model
+---------------------------------------
+```{r}
+wikiCART2 = rpart(Vandal ~ ., data=wikiTrain2, method="class")
+prp(wikiCART2)
+```
+Evaluating the New CART Model
+-----------------------------------------------
+```{r}
+pred = predict(wikiCART2, newdata=wikiTest2)
+pred.prob = pred[,2]
+predtable = table(wikiTest2$Vandal, pred.prob >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / nrow(test)`
+Adding Added and Removed Word Counts
+-----------------------------------------------
+```{r}
+dtmAdded = DocumentTermMatrix(corpusAdded)
+dtmRemoved = DocumentTermMatrix(corpusRemoved)
+wikiWords2$NumWordsAdded = rowSums(as.matrix(dtmAdded))
+wikiWords2$NumWordsRemoved = rowSums(as.matrix(dtmRemoved))
+mean(wikiWords2$NumWordsAdded)
+```
+The average number of words added is `r mean(wikiWords2$NumWordsAdded)`
+Split the Data
+----------------------------
+```{r}
+wikiTrain3 = subset(wikiWords2, spl==TRUE)
+wikiTest3 = subset(wikiWords2, spl==FALSE)
+```
+New CART Model
+---------------------------------------------
+```{r}
+wikiCART3 = rpart(Vandal ~ ., data=wikiTrain3, method="class")
+prp(wikiCART3)
+```
+Evaluating the New CART Model
+-----------------------------------------------
+```{r}
+pred = predict(wikiCART3, newdata=wikiTest3)
+pred.prob = pred[,2]
+predtable = table(wikiTest3$Vandal, pred.prob >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / nrow(test)`
+Incorporating Non-Textual Data
+=========================================
+We're goign to incorporate Minor and LoggedIn into our Model
+```{r}
+wikiWords3 = wikiWords2
+wikiWords3$Minor = wiki$Minor
+wikiWords3$Loggedin = wiki$Loggedin
+```
+Split the Data
+```{r}
+wikiTrain4 = subset(wikiWords3, spl==TRUE)
+wikiTest4 = subset(wikiWords3, spl==FALSE)
+```
+Final CART Model
+------------------------------------
+```{r}
+wikiCART4 = rpart(Vandal ~ ., data=wikiTrain4, method="class")
+prp(wikiCART4)
+```
+Evaluating the Final CART Model
+-----------------------------------------------
+```{r}
+pred = predict(wikiCART4, newdata=wikiTest4)
+pred.prob = pred[,2]
+predtable = table(wikiTest4$Vandal, pred.prob >= 0.5)
+predtable
+```
+**Accuracy:** `r (predtable[1,1] + predtable[2,2]) / nrow(test)`
