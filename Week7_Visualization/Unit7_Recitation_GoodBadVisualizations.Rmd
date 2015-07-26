@@ -66,3 +66,18 @@ We've added back in China! Let's try an orthographic projection
 worldplot = worldplot + coord_map("ortho", orientation=c(20,30,0))
 worldplot
 ```
+More Line Plots!
+========================================
+```{r}
+households = read.csv("households.csv")
+str(households)
+```
+Using melt to reshape our data
+-------------------------------
+```{r}
+suppressWarnings(library(reshape2))
+households[,1:2]
+head(melt(households, id="Year"))
+ggplot(melt(households, id="Year"), aes(x=Year, y=value, color=variable)) +
+  geom_line(size=2) + geom_point(size=5) + ylab("Percentage of Households")
+```
