@@ -1,0 +1,41 @@
+---
+title: 'Unit 7 - Visualizations: Text Data Word Clouds'
+author: "Mathew Bramson"
+date: "July 26, 2015"
+output: html_document
+---
+
+Loading and Pre-Processing
+---------------------------
+```{r}
+tweets = read.csv("tweets.csv", stringsAsFactors=FALSE)
+library(tm)
+corpus = Corpus(VectorSource(tweets$Tweet))
+corpus = tm_map(corpus, content_transformer(tolower))
+corpus = tm_map(corpus, removePunctuation)
+corpus = tm_map(corpus, removeWords, stopwords("english"))
+dtm = DocumentTermMatrix(corpus) #Convert to Document-Term Matrix
+allTweets = as.data.frame(as.matrix(dtm))
+```
+Creating our Wordcloud
+--------------------------
+```{r}
+library(wordcloud)
+wordcloud(colnames(allTweets),colSums(allTweets), scale=c(2,0.25))
+```
+**Removing the most common word**
+```{r}
+corpus = tm_map(corpus, removeWords, c("apple", stopwords("english")))
+dtm = DocumentTermMatrix(corpus) #Convert to Document-Term Matrix
+allTweets = as.data.frame(as.matrix(dtm))
+wordcloud(colnames(allTweets),colSums(allTweets), scale=c(2,0.25))
+```
+Adding Color
+----------------------------
+```{r}
+library(RColorBrewer)
+#Use display.brewer.all() to see available color palettes.
+wordcloud(colnames(allTweets),colSums(allTweets), 
+          scale=c(2,0.25),
+          colors=brewer.pal(8, "Dark2"))
+```

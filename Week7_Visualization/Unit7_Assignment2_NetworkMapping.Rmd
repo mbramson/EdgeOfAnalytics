@@ -1,0 +1,53 @@
+---
+title: 'Unit 7 - Visualizations: Assignment 2 - Network Data'
+output: html_document
+---
+
+Loading and Pre-Processing
+----------------------
+```{r}
+edges = read.csv("edges.csv")
+users = read.csv("users.csv")
+str(edges)
+str(users)
+library(igraph)
+g=graph.data.frame(edges, FALSE, users)
+```
+
+Plotting the Network
+-------------------
+```{r}
+plot(g, vertex.size=5, vertex.label=NA)
+table(degree(g))
+```
+
+Change the size of the nodes:
+```{r}
+V(g)$size = degree(g)/2+2
+plot(g, vertex.label=NA)
+```
+
+Coloring the Vertices to Relay Additional Information
+------------------------
+**By Gender**
+```{r}
+V(g)$color="black"
+V(g)$color[V(g)$gender=="A"] = "red"
+V(g)$color[V(g)$gender=="B"] = "gray"
+plot(g,vertex.label=NA)
+```
+
+**By School**
+```{r}
+V(g)$color="black"
+V(g)$color[V(g)$school=="A"] = "red"
+V(g)$color[V(g)$school=="AB"] = "yellow"
+plot(g,vertex.label=NA)
+```
+**By Locale**
+```{r}
+V(g)$color="black"
+V(g)$color[V(g)$locale=="A"] = "red"
+V(g)$color[V(g)$locale=="B"] = "yellow"
+plot(g,vertex.label=NA)
+```

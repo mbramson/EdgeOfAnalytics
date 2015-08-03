@@ -1,0 +1,68 @@
+Unit 7 - Visualizations: Assignment 1: Election Forecasting Revisited
+=============================================================
+Data Load and Pre-Process
+-----------------------------------
+```{r}
+library(ggplot2)
+library(maps)
+library(ggmap)
+statesMap = map_data("state")
+str(statesMap)
+```
+Map Plotting
+----------------------------
+```{r}
+ggplot(statesMap, aes(x=long, y=lat, group=group)) + geom_polygon(fill="white", color="black")
+polling = read.csv("PollingImputed.csv")
+str(polling)
+```
+Splitting the Data
+------------------------
+```{r}
+Train = subset(polling, Year <= 2008)
+Test = subset(polling, Year == 2012)
+dim(Train)
+dim(Test)
+```
+Logistic Regression Model
+-------------------------
+```{r}
+mod2 = glm(Republican ~ SurveyUSA + DiffCount, data=Train, family="binomial")
+TestPrediction = predict(mod2, newdata=Test, type="response")
+TestPredictionBinary = as.numeric(TestPrediction > 0.5)
+predictionDataFrame = data.frame(TestPrediction, TestPredictionBinary, Test$State)
+predtable = table(Test$Republican, TestPredictionBinary)
+predtable
+```
+**Accuracy:** `r (predtable[1,1]+predtable[2,2])/sum(predtable)`
+
+Merging the Model DataSet with the Map
+=============================================
+```{r}
+predictionDataFrame$region = tolower(predictionDataFrame$Test.State)
+predictionMap = merge(statesMap, predictionDataFrame, by="region")
+predictionMap = predictionMap[order(predictionMap$order),]
+ggplot(predictionMap, aes(x=long, y=lat, group=group, fill=TestPredictionBinary)) +
+      geom_polygon(color="black")
+```
+
+Let's make sure that the legend only has two discrete outcomes
+```{r}
+ggplot(predictionMap, aes(x=long, y=lat, group=group, fill=TestPredictionBinary)) +
+      geom_polygon(color = "black") + 
+      scale_fill_gradient(low = "blue", high = "red", guide = "legend", breaks= c(0,1), 
+                          labels = c("Democrat", "Republican"), name = "Prediction 2012")
+```
+Alternatively we could plot the probabilities associated with the prediction for each state
+```{r}
+ggplot(predictionMap, aes(x=long, y=lat, group=group, fill=TestPrediction)) +
+      geom_polygon(color = "black") + 
+      scale_fill_gradient(low = "grey", high = "black", guide = "legend", breaks= c(0,1), 
+                          labels = c("Democrat", "Republican"), name = "Prediction 2012")
+```
+Experimenting with different parameters
+```{r}
+ggplot(predictionMap, aes(x=long, y=lat, group=group, fill=TestPredictionBinary)) +
+      geom_polygon(color = "black", linetype=3) + 
+      scale_fill_gradient(low = "blue", high = "red", guide = "legend", breaks= c(0,1), 
+                          labels = c("Democrat", "Republican"), name = "Prediction 2012")
